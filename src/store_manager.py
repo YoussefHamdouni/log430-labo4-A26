@@ -15,6 +15,22 @@ from prometheus_client import Counter, generate_latest, CONTENT_TYPE_LATEST
  
 app = Flask(__name__)
 
+# Auto-generate Redis reports 2 seconds after startup (to give enough time for the DB to start up as well).
+# Once done for the first time, repeat it recursively every 60s to refresh the cache.
+# Les minuteries sont en mode daemon pour ne pas empêcher le processus (ex. pytest) de se terminer.
+def generate_reports_and_cache():
+    timers = [
+        threading.Timer(2.0, get_report_highest_spending_users, args=(True,)),
+        threading.Timer(2.0, get_report_best_selling_products, args=(True,)),
+        threading.Timer(60.0, generate_reports_and_cache),
+    ]
+    for timer in timers:
+        timer.daemon = True
+        timer.start()
+
+# Start the first execution
+generate_reports_and_cache()
+
 @app.get('/health-check')
 def health():
     """Return OK if app is up and running"""
